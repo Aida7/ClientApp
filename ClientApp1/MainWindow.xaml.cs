@@ -16,6 +16,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
+
 //Создать клиент-серверное приложение чат.Чат будет работать ТОЛЬКО ДЛЯ ТРЁХ клиентов.
 //Суть проста, клиент построен на постоянном соединении с сервером.
 //Когда клиент подключается к серверу, все уже подключенные клиенты об этом узнают (Пользователь N заходит в чат). 
@@ -30,8 +31,7 @@ namespace ClientApp1
     public partial class MainWindow : Window
     {
         private static int defaultPort = 3535;
-        IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), defaultPort);
-        Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        Socket socket;
         public MainWindow()
         {
             InitializeComponent();
@@ -39,45 +39,48 @@ namespace ClientApp1
 
         private void Send_Clik(object sender, RoutedEventArgs e)
         {
+            IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), defaultPort);
+            socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             try
             {
+
                 list.Items.Add("Oтправка сообщения...");
                 socket.Connect(endPoint);
-                ClientData clientData = new ClientData { Sender = nameUser.Text };
-                var jsonConvert = JsonConvert.DeserializeObject<ClientData>(clientData.Sender);
-                socket.Send(Encoding.Default.GetBytes(jsonConvert.Sender));
 
-                clientData = new ClientData { Sender = text.Text };
-                var jsonConvert1 = JsonConvert.DeserializeObject<ClientData>(clientData.Text);
-                socket.Send(Encoding.Default.GetBytes(jsonConvert1.Text));
+                // info = new ClientData { Sender = "First", SentDate = DateTime.Now, Text = "TextFirst" };
+                //socket.Send(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(info)));
 
-                while (true)
-                {
-                    Socket incomeConnection = socket.Accept();
-                    int bytes;
-                    //Размер буферра 
-                    byte[] data = new byte[1024];
-                    StringBuilder builder = new StringBuilder();
+                ClientData info = new ClientData { Sender = nameUser.Text, Text = text.Text, SentDate = DateTime.Now };
+                socket.Send(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(info)));
 
-                    do
-                    {
-                        bytes = incomeConnection.Receive(data);
-                        builder.Append(Encoding.Default.GetString(data));
-                    }
-                    while (incomeConnection.Available > 0);
-
-                    list.Items.Add(builder.ToString());
-
-                }
             }
             catch (SocketException ex)
             {
                 Console.WriteLine(ex.Message);
             }
-            finally
-            {
-                socket.Close();
-            }
+
+            ReceiveMessage();
         }
+        
+    
+        public void ReceiveMessage()
+        {
+            ClientData clientData = new ClientData { SocketConnect = socket };
+
+            while (true)
+            {
+                int bytes;
+                byte[] data = new byte[1024];
+                bytes = socket.Receive(data);
+                string newData = Encoding.UTF8.GetString(data, 0, bytes);
+                list.Items.Add(newData);
+            }
+
+
+        }
+
     }
 }
+
+
+
